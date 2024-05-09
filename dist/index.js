@@ -11743,6 +11743,9 @@ function getBeforeScript() {
     }
     return '';
 }
+function pipInstall(packages) {
+    return `python3.11 -mpip install ${packages}`;
+}
 async function dockerBuild(container, maturinRelease, args) {
     var _a;
     const target = getRustTarget(args);
@@ -11788,10 +11791,16 @@ async function dockerBuild(container, maturinRelease, args) {
     const url = maturinRelease === 'latest'
         ? `https://github.com/PyO3/maturin/releases/latest/download/maturin-${arch}-unknown-linux-musl.tar.gz`
         : `https://github.com/PyO3/maturin/releases/download/${maturinRelease}/maturin-${arch}-unknown-linux-musl.tar.gz`;
-    const rustupComponents = core.getInput('rustup-components');
     const commands = [
         '#!/bin/bash',
-        'set -e',
+        'set -e'
+    ];
+    const beforeScript = getBeforeScript();
+    if (beforeScript.length > 0) {
+        commands.push('echo "::group::Run before script"', ...beforeScript.split('\n'), 'echo "::endgroup::"');
+    }
+    const rustupComponents = core.getInput('rustup-components');
+    commands.push(...[
         'echo "::group::Install Rust"',
         `which rustup > /dev/null || curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain ${rustToolchain}`,
         'export PATH="$HOME/.cargo/bin:$PATH"',
@@ -11803,12 +11812,12 @@ async function dockerBuild(container, maturinRelease, args) {
         'echo "::group::Install maturin"',
         `curl -L ${url} | tar -xz -C /usr/local/bin`,
         'maturin --version || true',
-        'which patchelf > /dev/null || python3 -m pip install patchelf',
-        'python3 -m pip install cffi || true',
+        `which patchelf > /dev/null || ${pipInstall('patchelf')}`,
+        `${pipInstall('cffi')} || true`,
         'echo "::endgroup::"'
-    ];
+    ]);
     if (args.includes('--zig')) {
-        commands.push('echo "::group::Install Zig"', 'python3 -m pip install ziglang', 'echo "::endgroup::"');
+        commands.push('echo "::group::Install Zig"', `${pipInstall('ziglang')}`, 'echo "::endgroup::"');
     }
     if (target.length > 0) {
         commands.push('echo "::group::Install Rust target"', `if [[ ! -d $(rustc --print target-libdir --target ${target}) ]]; then rustup target add ${target}; fi`, 'echo "::endgroup::"');
@@ -11818,12 +11827,8 @@ async function dockerBuild(container, maturinRelease, args) {
         commands.push('echo "::group::Install Extra Rust components"', `rustup component add ${components}`, 'echo "::endgroup::"');
     }
     if (sccache) {
-        commands.push('echo "::group::Install sccache"', 'python3 -m pip install "sccache>=0.4.0"', 'sccache --version', 'echo "::endgroup::"');
+        commands.push('echo "::group::Install sccache"', pipInstall('sccache>=0.4.0'), 'sccache --version', 'echo "::endgroup::"');
         setupSccacheEnv();
-    }
-    const beforeScript = getBeforeScript();
-    if (beforeScript.length > 0) {
-        commands.push('echo "::group::Run before script"', ...beforeScript.split('\n'), 'echo "::endgroup::"');
     }
     commands.push(`maturin ${args.join(' ')}`);
     if (sccache) {

@@ -484,6 +484,14 @@ function getBeforeScript(): string {
   return ''
 }
 
+function pipInstall(packages: string): string {
+  // const firstPython = '/opt/python/cp311-cp311/bin/python'
+  // if (existsSync(firstPython)) {
+  //   return `${firstPython} -mpip install ${packages}`
+  // }
+  return `python3.11 -mpip install ${packages}`
+}
+
 /**
  * Build manylinux wheel using Docker
  * @param maturinRelease maturin release tag, ie. version
@@ -545,33 +553,46 @@ async function dockerBuild(
     maturinRelease === 'latest'
       ? `https://github.com/PyO3/maturin/releases/latest/download/maturin-${arch}-unknown-linux-musl.tar.gz`
       : `https://github.com/PyO3/maturin/releases/download/${maturinRelease}/maturin-${arch}-unknown-linux-musl.tar.gz`
-  const rustupComponents = core.getInput('rustup-components')
+
   const commands = [
     '#!/bin/bash',
     // Stop on first error
-    'set -e',
-    // Install Rust
-    'echo "::group::Install Rust"',
-    `which rustup > /dev/null || curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain ${rustToolchain}`,
-    'export PATH="$HOME/.cargo/bin:$PATH"',
-    `echo "Install Rust toolchain ${rustToolchain}"`,
-    `rustup override set ${rustToolchain}`,
-    `rustup component add llvm-tools-preview || true`,
-    'echo "::endgroup::"',
-    // Add all supported python versions to PATH
-    'export PATH="$PATH:/opt/python/cp37-cp37m/bin:/opt/python/cp38-cp38/bin:/opt/python/cp39-cp39/bin:/opt/python/cp310-cp310/bin:/opt/python/cp311-cp311/bin:/opt/python/cp312-cp312/bin"',
-    // Install maturin
-    'echo "::group::Install maturin"',
-    `curl -L ${url} | tar -xz -C /usr/local/bin`,
-    'maturin --version || true',
-    'which patchelf > /dev/null || python3 -m pip install patchelf',
-    'python3 -m pip install cffi || true', // Allow failure for now
-    'echo "::endgroup::"'
+    'set -e'
   ]
+  const beforeScript = getBeforeScript()
+  if (beforeScript.length > 0) {
+    commands.push(
+      'echo "::group::Run before script"',
+      ...beforeScript.split('\n'),
+      'echo "::endgroup::"'
+    )
+  }
+  const rustupComponents = core.getInput('rustup-components')
+  commands.push(
+    ...[
+      // Install Rust
+      'echo "::group::Install Rust"',
+      `which rustup > /dev/null || curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain ${rustToolchain}`,
+      'export PATH="$HOME/.cargo/bin:$PATH"',
+      `echo "Install Rust toolchain ${rustToolchain}"`,
+      `rustup override set ${rustToolchain}`,
+      `rustup component add llvm-tools-preview || true`,
+      'echo "::endgroup::"',
+      // Add all supported python versions to PATH
+      'export PATH="$PATH:/opt/python/cp37-cp37m/bin:/opt/python/cp38-cp38/bin:/opt/python/cp39-cp39/bin:/opt/python/cp310-cp310/bin:/opt/python/cp311-cp311/bin:/opt/python/cp312-cp312/bin"',
+      // Install maturin
+      'echo "::group::Install maturin"',
+      `curl -L ${url} | tar -xz -C /usr/local/bin`,
+      'maturin --version || true',
+      `which patchelf > /dev/null || ${pipInstall('patchelf')}`,
+      `${pipInstall('cffi')} || true`, // Allow failure for now
+      'echo "::endgroup::"'
+    ]
+  )
   if (args.includes('--zig')) {
     commands.push(
       'echo "::group::Install Zig"',
-      'python3 -m pip install ziglang',
+      `${pipInstall('ziglang')}`,
       'echo "::endgroup::"'
     )
   }
@@ -591,19 +612,10 @@ async function dockerBuild(
     )
   }
 
-  const beforeScript = getBeforeScript()
-  if (beforeScript.length > 0) {
-    commands.push(
-      'echo "::group::Run before script"',
-      ...beforeScript.split('\n'),
-      'echo "::endgroup::"'
-    )
-  }
-
   if (sccache) {
     commands.push(
       'echo "::group::Install sccache"',
-      'python3 -m pip install "sccache>=0.4.0"',
+      pipInstall('sccache>=0.4.0'),
       'sccache --version',
       'echo "::endgroup::"'
     )
