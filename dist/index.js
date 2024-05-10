@@ -11862,6 +11862,9 @@ async function dockerBuild(container, maturinRelease, args) {
     }
     const workdir = getWorkingDirectory();
     const dockerVolumes = [];
+    const cargoHome = process.env.CARGO_HOME || path.join(os.homedir(), '.cargo');
+    dockerVolumes.push('-v');
+    dockerVolumes.push(`${cargoHome}:/root/.cargo/`);
     const ssh_auth_sock = process.env.SSH_AUTH_SOCK;
     if (ssh_auth_sock) {
         dockerVolumes.push('-v');

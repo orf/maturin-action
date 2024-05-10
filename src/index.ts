@@ -665,6 +665,11 @@ async function dockerBuild(
   const workdir = getWorkingDirectory()
   const dockerVolumes = []
 
+  const cargoHome = process.env.CARGO_HOME || path.join(os.homedir(), '.cargo')
+
+  dockerVolumes.push('-v')
+  dockerVolumes.push(`${cargoHome}:/root/.cargo/`)
+
   // forward ssh agent
   const ssh_auth_sock = process.env.SSH_AUTH_SOCK
   if (ssh_auth_sock) {
