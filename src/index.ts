@@ -669,6 +669,7 @@ async function dockerBuild(
 
   dockerVolumes.push('-v')
   dockerVolumes.push(`${cargoHome}/git/:/root/.cargo/git/`)
+  dockerVolumes.push('-v')
   dockerVolumes.push(
     `${cargoHome}/registry/cache/:/root/.cargo/registry/cache/`
   )
