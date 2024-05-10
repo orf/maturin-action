@@ -667,8 +667,8 @@ async function dockerBuild(
 
   const cargoHome = process.env.CARGO_HOME || path.join(os.homedir(), '.cargo')
 
-  dockerVolumes.push('-v')
-  dockerVolumes.push(`${cargoHome}/git/:/root/.cargo/git/`)
+  // dockerVolumes.push('-v')
+  // dockerVolumes.push(`${cargoHome}/git/:/root/.cargo/git/`)
   dockerVolumes.push('-v')
   dockerVolumes.push(
     `${cargoHome}/registry/cache/:/root/.cargo/registry/cache/`
