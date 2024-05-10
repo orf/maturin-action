@@ -669,7 +669,9 @@ async function dockerBuild(
 
   dockerVolumes.push('-v')
   dockerVolumes.push(`${cargoHome}/git/:/root/.cargo/git/`)
-  dockerVolumes.push(`${cargoHome}/registry/:/root/.cargo/registry/`)
+  dockerVolumes.push(
+    `${cargoHome}/registry/cache/:/root/.cargo/registry/cache/`
+  )
 
   // forward ssh agent
   const ssh_auth_sock = process.env.SSH_AUTH_SOCK

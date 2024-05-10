@@ -11864,7 +11864,8 @@ async function dockerBuild(container, maturinRelease, args) {
     const dockerVolumes = [];
     const cargoHome = process.env.CARGO_HOME || path.join(os.homedir(), '.cargo');
     dockerVolumes.push('-v');
-    dockerVolumes.push(`${cargoHome}:/root/.cargo/`);
+    dockerVolumes.push(`${cargoHome}/git/:/root/.cargo/git/`);
+    dockerVolumes.push(`${cargoHome}/registry/cache/:/root/.cargo/registry/cache/`);
     const ssh_auth_sock = process.env.SSH_AUTH_SOCK;
     if (ssh_auth_sock) {
         dockerVolumes.push('-v');
